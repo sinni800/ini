@@ -388,6 +388,10 @@ func reflectWithProperType(t reflect.Type, key *Key, field reflect.Value, delim 
 		key.SetValue(fmt.Sprint(field.Interface().(time.Time).Format(time.RFC3339)))
 	case reflect.Slice:
 		return reflectSliceWithProperType(key, field, delim)
+	case reflect.Interface:
+		// Do Nothing, is either handled or actually nil
+	case reflect.Ptr:
+		// Do Nothing, is either handled or was nil
 	default:
 		return fmt.Errorf("unsupported type '%s'", t)
 	}
@@ -442,8 +446,16 @@ func (s *Section) reflectFrom(val reflect.Value) error {
 			continue
 		}
 
+		if field.Type().Kind() == reflect.Interface && !field.IsNil() {
+			field = field.Elem()
+		}
+
+		if field.Type().Kind() == reflect.Ptr && !field.IsNil() {
+			field = field.Elem()
+		}
+
 		if (tpField.Type.Kind() == reflect.Ptr && tpField.Anonymous) ||
-			(tpField.Type.Kind() == reflect.Struct && tpField.Type.Name() != "Time") {
+			(field.Type().Kind() == reflect.Struct && field.Type().Name() != "Time") {
 			// Note: The only error here is section doesn't exist.
 			sec, err := s.f.GetSection(fieldName)
 			if err != nil {
